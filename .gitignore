@@ -1,0 +1,18 @@
+# --- Arquivos temporários do Python ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- Arquivos do VS Code ---
+.vscode/
+
+# --- Arquivos de sistema ---
+.DS_Store
+Thumbs.db
+
+# --- Arquivos de ambiente (caso use no futuro) ---
+.env
+
+# --- Logs ou backups ---
+*.log
+*.bak
