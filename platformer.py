@@ -19,9 +19,9 @@ player.vx = 0
 player.scale = 3
 
 player_frames = {
-    "idle": ["player_idle"],
+    "idle": ["player_idle","player_idle2","player_idle3"],
     "run": ["player_run1", "player_run2", "player_run3"],
-    "jump": ["player_jump"]
+    "jump": ["player_jumping","player_jumping2","player_jumping3"]
 }
 player_frame_index = 0
 player_frame_timer = 0
@@ -186,7 +186,7 @@ def handle_gameplay():
         game_state = "menu"; return
 
     left, right, jump = (keyboard.a, keyboard.d, keyboard.w) if use_wasd else (keyboard.left, keyboard.right, keyboard.space)
-    moving = False
+    moving = True
     if left:
         player.x -= player_speed; moving = True; facing_right = False
     if right:
