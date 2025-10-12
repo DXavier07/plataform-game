@@ -64,28 +64,28 @@ def build_level():
         platforms.append(Actor('chao', topleft=(i * 32, 370)))
 
     # Plataformas ORIGINAIS (mantidas nas mesmas posições)
-    original_platform_positions = [
+    platform_positions = [
+        # plataformas originais
         (300, 300), (600, 250), (900, 320), (1200, 270),
-        (1600, 230), (2000, 300), (2400, 250), (2700, 200)
-    ]
-    for pos in original_platform_positions:
+        (1600, 230), (2000, 300), (2400, 250), (2700, 200),
+
+        # plataformas adicionais originais
+        (450, 270), (750, 220), (1050, 290), (1350, 240),
+        (1750, 200), (2150, 270), (2550, 220), (2850, 170),
+
+        # novas plataformas com Y maior (mais altas)
+        (500, 180), (950, 150), (1400, 120), (1800, 100),
+
+        # plataformas lado a lado para formar plataformas maiores
+        (310, 300),  # junto de 300,300
+        (610, 250),  # junto de 600,250
+        (2150 + 50, 270),  # junto de 2150,270
+        (1050 + 40, 290)   # junto de 1050,290
+        ]
+
+    for pos in platform_positions:
         platforms.append(Actor('platform', topleft=pos))
 
-    # --- NOVAS PLATAFORMAS (adicionadas, espaçadas e alcançáveis) ---
-    additional_platform_positions = [
-        (450, 270),  # perto de 300,300 mas deslocada
-        (750, 220),  # perto de 600,250
-        (1050, 290), # perto de 900,320
-        (1350, 240), # perto de 1200,270
-        (1750, 200), # perto de 1600,230
-        (2150, 270), # perto de 2000,300
-        (2550, 220), # perto de 2400,250
-        (2850, 170)  # perto de 2700,200
-    ]
-    for pos in additional_platform_positions:
-        x, y = pos
-        if x < WORLD_LENGTH - 50:
-            platforms.append(Actor('platform', topleft=pos))
 
     # Moedas (mantidas iguais)
     coin_positions = [
@@ -93,7 +93,12 @@ def build_level():
         (2050, 270), (2450, 220), (2750, 170)
     ]
     for pos in coin_positions:
-        coins.append(Actor('coin', topleft=pos))
+        coin = Actor('coin_idle1', topleft=pos)
+        coin.frame_timer = 0
+        coin.frame_index = 0
+        coin.frames = ["coin_idle1", "coin_idle2", "coin_idle3", "coin_idle4"]
+        coins.append(coin)
+
 
 
 def restart_game():
@@ -116,10 +121,10 @@ def restart_game():
     enemy_positions = [800, 1500, 2300]
     enemy_directions = [2, -2, 1.5]
     for pos, speed in zip(enemy_positions, enemy_directions):
-        enemy = Actor("enemy_run2", topleft=(pos, 360))
+        enemy = Actor("monster1_run", topleft=(pos, 357))
         enemy.frame_timer = 0
         enemy.frame_index = 0
-        enemy.frames = ["enemy_run2", "enemy_run3"]
+        enemy.frames = ["monster1_run", "monster1_run2", "monster1_run3", "monster1_run4"]
         enemy.scale = 3
         enemies.append(enemy)
         enemy_speeds.append(speed)
@@ -185,7 +190,7 @@ def handle_gameplay():
     if keyboard.escape:
         game_state = "menu"; return
 
-    left, right, jump = (keyboard.a, keyboard.d, keyboard.w) if use_wasd else (keyboard.left, keyboard.right, keyboard.space)
+    left, right, jump = (keyboard.a, keyboard.d, keyboard.space)
     moving = True
     if left:
         player.x -= player_speed; moving = True; facing_right = False
@@ -238,6 +243,14 @@ def handle_gameplay():
                 sounds.coin.play()
             except Exception:
                 pass
+
+    # Atualizar animação das moedas
+    for c in coins:
+        c.frame_timer += 1
+        if c.frame_timer > 10:  # ajuste a velocidade da animação
+            c.frame_index = (c.frame_index + 1) % len(c.frames)
+            c.image = c.frames[c.frame_index]
+            c.frame_timer = 0
 
     if player.top > HEIGHT: game_state = "game_over"
     if player.x >= WORLD_LENGTH - 100: game_state = "win"
