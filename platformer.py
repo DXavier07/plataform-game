@@ -195,7 +195,7 @@ def handle_gameplay():
         player_vy = jump_power; can_jump = False
         # SOM DE PULO (apenas do jogador)
         try:
-            sounds.jump.mp3.play()
+            sounds.jump.play()
         except Exception:
             pass
 
@@ -223,7 +223,7 @@ def handle_gameplay():
             if player_vy > 0 and player.bottom - e.top < 30:
                 # SOM DE MATAR INIMIGO
                 try:
-                    sounds.hit.mp3.play()
+                    sounds.hit.play()
                 except Exception:
                     pass
                 enemies.pop(i); enemy_speeds.pop(i); player_vy = jump_power / 1.5; score += 50
@@ -231,7 +231,13 @@ def handle_gameplay():
                 game_state = "game_over"; return
 
     for c in coins[:]:
-        if player.colliderect(c): coins.remove(c); score += 10
+        if player.colliderect(c): 
+            coins.remove(c)
+            score += 10
+            try:
+                sounds.coin.play()
+            except Exception:
+                pass
 
     if player.top > HEIGHT: game_state = "game_over"
     if player.x >= WORLD_LENGTH - 100: game_state = "win"
@@ -250,9 +256,18 @@ def handle_gameplay():
 def on_key_down(key):
     global selected_option
     if game_state == "menu":
-        if key == keys.UP: selected_option = (selected_option - 1) % len(menu_options)
-        if key == keys.DOWN: selected_option = (selected_option + 1) % len(menu_options)
-
+        if key == keys.UP:
+            selected_option = (selected_option - 1) % len(menu_options)
+            try:
+                sounds.select_effect.play()
+            except Exception:
+                    pass
+        if key == keys.DOWN: 
+            selected_option = (selected_option + 1) % len(menu_options)
+            try:
+                sounds.select_effect.play()
+            except Exception:
+                pass
 
 # --- DESENHO ---
 def draw():
