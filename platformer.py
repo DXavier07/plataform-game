@@ -33,80 +33,137 @@ player_vy = 0
 player_speed = 4
 jump_power = -10
 gravity = 0.5
-can_jump = True
+can_jump = True  # evita duplo pulo pra corrigir bug de morte
 
 # --- MUNDO ---
 camera_x = 0
 WORLD_LENGTH = 3000
 
-# --- OBJETOS ---
-platforms, coins, enemies, enemy_speeds = [], [], [], []
-on_ground, score = False, 0
+# --- LISTAS ---
+platforms = []
+coins = []
+enemies = []
+enemy_speeds = []
 
-# --- MENU ---
-menu_camera_x, menu_speed = 0, 0.5
+# --- CONTROLE ---
+on_ground = False
+score = 0
+menu_camera_x = 0
+menu_speed = 0.5
+use_wasd = False
 selected_option = 0
-menu_options = ["Começar Jogo", "Mutar/Desmutar Som", "Sair do Jogo"]
+menu_options = ["Começar Jogo", "Mutar/Desmutar Música", "Sair"]
 
 # --- FUNÇÕES ---
 def build_level():
-    platforms.clear(), coins.clear()
+    platforms.clear()
+    coins.clear()
+
+    # Chão (mantido igual)
     for i in range(100):
         platforms.append(Actor('chao', topleft=(i * 32, 370)))
 
-    for pos in [(300, 300), (600, 250), (900, 320), (1200, 270),
-                (1600, 230), (2000, 300), (2400, 250), (2700, 200)]:
+    # Plataformas ORIGINAIS (mantidas nas mesmas posições)
+    original_platform_positions = [
+        (300, 300), (600, 250), (900, 320), (1200, 270),
+        (1600, 230), (2000, 300), (2400, 250), (2700, 200)
+    ]
+    for pos in original_platform_positions:
         platforms.append(Actor('platform', topleft=pos))
 
-    for pos in [(320, 270), (620, 220), (1250, 240), (1650, 200),
-                (2050, 270), (2450, 220), (2750, 170)]:
+    # --- NOVAS PLATAFORMAS (adicionadas, espaçadas e alcançáveis) ---
+    additional_platform_positions = [
+        (450, 270),  # perto de 300,300 mas deslocada
+        (750, 220),  # perto de 600,250
+        (1050, 290), # perto de 900,320
+        (1350, 240), # perto de 1200,270
+        (1750, 200), # perto de 1600,230
+        (2150, 270), # perto de 2000,300
+        (2550, 220), # perto de 2400,250
+        (2850, 170)  # perto de 2700,200
+    ]
+    for pos in additional_platform_positions:
+        x, y = pos
+        if x < WORLD_LENGTH - 50:
+            platforms.append(Actor('platform', topleft=pos))
+
+    # Moedas (mantidas iguais)
+    coin_positions = [
+        (320, 270), (620, 220), (1250, 240), (1650, 200),
+        (2050, 270), (2450, 220), (2750, 170)
+    ]
+    for pos in coin_positions:
         coins.append(Actor('coin', topleft=pos))
 
 
 def restart_game():
-    global player_vy, score, camera_x, player_frame_index, player_frame_timer
-    global player_state, facing_right, can_jump
+    global player_vy, score, camera_x, player_frame_index, player_frame_timer, player_state, facing_right, can_jump
 
     build_level()
-    player.bottom, player.x = 370, 80
-    player_vy, camera_x, score = 0, 0, 0
-    facing_right, can_jump = True, True
-    enemies.clear(), enemy_speeds.clear()
 
-    for pos, speed in zip([800, 1500, 2300], [2, -2, 1.5]):
-        e = Actor("enemy_run2", topleft=(pos, 360))
-        e.frames, e.frame_index, e.frame_timer, e.scale = ["enemy_run2", "enemy_run3"], 0, 0, 3
-        enemies.append(e)
+    player.bottom = 370
+    player.x = 80
+    player_vy = 0
+    score = 0
+    camera_x = 0
+    facing_right = True
+    can_jump = True
+
+    enemies.clear()
+    enemy_speeds.clear()
+
+    # --- CRIAÇÃO DOS INIMIGOS ---
+    enemy_positions = [800, 1500, 2300]
+    enemy_directions = [2, -2, 1.5]
+    for pos, speed in zip(enemy_positions, enemy_directions):
+        enemy = Actor("enemy_run2", topleft=(pos, 360))
+        enemy.frame_timer = 0
+        enemy.frame_index = 0
+        enemy.frames = ["enemy_run2", "enemy_run3"]
+        enemy.scale = 3
+        enemies.append(enemy)
         enemy_speeds.append(speed)
 
-    player_frame_index = player_frame_timer = 0
+    player_frame_index = 0
+    player_frame_timer = 0
     player_state = "idle"
 
 
 def start_music():
     global music_playing
     if not music_playing and not music_muted:
-        music.play('bg.wav')
-        music.set_volume(music_volume)
-        music_playing = True
+        try:
+            music.play('bg.wav')
+            music.set_volume(music_volume)
+            music_playing = True
+        except Exception:
+            music_playing = False
 
 
 def toggle_music():
-    global music_muted
+    global music_muted, music_playing
     music_muted = not music_muted
     if music_muted:
-        music.stop()
+        try:
+            music.stop()
+        except Exception:
+            pass
+        music_playing = False
     else:
-        music.play('bg.wav')
-        music.set_volume(music_volume)
+        # tenta (re)iniciar música
+        start_music()
 
 
+# --- FUNÇÃO PARA DESENHAR O FUNDO ---
 def draw_background(offset=0):
-    bg_w, bg_h = images.background.get_width(), images.background.get_height()
-    parallax = int(offset * 0.5) % bg_w
-    for x in range(-bg_w, WIDTH + bg_w, bg_w):
-        for y in range(0, HEIGHT, bg_h):
-            screen.blit("background", (x - parallax, y))
+    try:
+        bg_w, bg_h = images.background.get_width(), images.background.get_height()
+        parallax = int(offset * 0.5) % bg_w
+        for x in range(-bg_w, WIDTH + bg_w, bg_w):
+            for y in range(0, HEIGHT, bg_h):
+                screen.blit("background", (x - parallax, y))
+    except Exception:
+        screen.fill((135, 206, 235))
 
 
 def handle_menu_input():
@@ -114,11 +171,10 @@ def handle_menu_input():
     if keyboard.RETURN:
         opt = menu_options[selected_option]
         if opt == "Começar Jogo":
-            restart_game()
-            game_state = "playing"
-        elif opt == "Mutar/Desmutar Som":
+            restart_game(); game_state = "playing"
+        elif opt == "Mutar/Desmutar Música":
             toggle_music()
-        elif opt == "Sair do Jogo":
+        elif opt == "Sair":
             sys.exit()
 
 
@@ -127,22 +183,21 @@ def handle_gameplay():
     global player_frame_index, player_frame_timer, player_state, facing_right
 
     if keyboard.escape:
-        game_state = "menu"
-        return
+        game_state = "menu"; return
 
-    left, right, jump = keyboard.left, keyboard.right, keyboard.space
+    left, right, jump = (keyboard.a, keyboard.d, keyboard.w) if use_wasd else (keyboard.left, keyboard.right, keyboard.space)
     moving = False
     if left:
-        player.x -= player_speed
-        moving = True
-        facing_right = False
+        player.x -= player_speed; moving = True; facing_right = False
     if right:
-        player.x += player_speed
-        moving = True
-        facing_right = True
+        player.x += player_speed; moving = True; facing_right = True
     if jump and can_jump and on_ground:
-        player_vy = jump_power
-        can_jump = False
+        player_vy = jump_power; can_jump = False
+        # SOM DE PULO (apenas do jogador)
+        try:
+            sounds.jump.mp3.play()
+        except Exception:
+            pass
 
     player_vy += gravity
     player.y += player_vy
@@ -156,35 +211,30 @@ def handle_gameplay():
         player.bottom, player_vy, on_ground, can_jump = HEIGHT, 0, True, True
 
     for i in range(len(enemies) - 1, -1, -1):
-        e = enemies[i]
-        e.x += enemy_speeds[i]
-        if e.left <= 0 or e.right >= WORLD_LENGTH:
-            enemy_speeds[i] *= -1
+        e = enemies[i]; e.x += enemy_speeds[i]
+        if e.left <= 0 or e.right >= WORLD_LENGTH: enemy_speeds[i] *= -1
         e.frame_timer += 1
         if e.frame_timer > 15:
             e.frame_index = (e.frame_index + 1) % len(e.frames)
-            e.image = e.frames[e.frame_index]
-            e.frame_timer = 0
+            e.image = e.frames[e.frame_index]; e.frame_timer = 0
 
         if player.colliderect(e):
+            # jogador mata inimigo pular na cabeça dele
             if player_vy > 0 and player.bottom - e.top < 30:
-                enemies.pop(i)
-                enemy_speeds.pop(i)
-                player_vy = jump_power / 1.5
-                score += 50
+                # SOM DE MATAR INIMIGO
+                try:
+                    sounds.hit.mp3.play()
+                except Exception:
+                    pass
+                enemies.pop(i); enemy_speeds.pop(i); player_vy = jump_power / 1.5; score += 50
             else:
-                game_state = "game_over"
-                return
+                game_state = "game_over"; return
 
     for c in coins[:]:
-        if player.colliderect(c):
-            coins.remove(c)
-            score += 10
+        if player.colliderect(c): coins.remove(c); score += 10
 
-    if player.top > HEIGHT:
-        game_state = "game_over"
-    if player.x >= WORLD_LENGTH - 100:
-        game_state = "win"
+    if player.top > HEIGHT: game_state = "game_over"
+    if player.x >= WORLD_LENGTH - 100: game_state = "win"
 
     camera_x = max(0, min(player.x - WIDTH // 2, WORLD_LENGTH - WIDTH))
 
@@ -200,10 +250,8 @@ def handle_gameplay():
 def on_key_down(key):
     global selected_option
     if game_state == "menu":
-        if key == keys.UP:
-            selected_option = (selected_option - 1) % len(menu_options)
-        if key == keys.DOWN:
-            selected_option = (selected_option + 1) % len(menu_options)
+        if key == keys.UP: selected_option = (selected_option - 1) % len(menu_options)
+        if key == keys.DOWN: selected_option = (selected_option + 1) % len(menu_options)
 
 
 # --- DESENHO ---
@@ -235,7 +283,7 @@ def draw_menu():
     screen.draw.text("PLATAFORMA AVENTURA", center=(WIDTH/2, 100), fontsize=50, color="black")
     for i, opt in enumerate(menu_options):
         color = "yellow" if i == selected_option else "white"
-        screen.draw.text(opt, center=(WIDTH/2, 200+i*50), fontsize=40, color=color)
+        screen.draw.text(opt, center=(WIDTH/2, 220+i*50), fontsize=40, color=color)
     screen.draw.text("Use ↑ ↓ | ENTER selecionar", center=(WIDTH/2, HEIGHT-40), fontsize=25, color="darkblue")
 
 
